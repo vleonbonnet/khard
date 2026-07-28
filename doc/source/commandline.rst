@@ -45,6 +45,12 @@ filed names will be converted to lower case.  For field names with spaces (like
 ``name:`` query is possible which will search in *any* name field (including
 nicknames and formatted names).
 
+A field query matches if the search term occurs anywhere in the field's value.
+To require the value (or, for list fields like ``categories``, one of the
+items) to match the search term completely, prefix the term with an equal
+sign: ``categories:=friend`` matches the category "friend" but not "family
+friend" (matching is still case insensitive).
+
 .. note::
    Typos in field names result in the query beeing considered as a general
    search term.  So ``email:foo`` will search for "email:foo" in any field of

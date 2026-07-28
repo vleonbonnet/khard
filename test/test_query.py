@@ -3,6 +3,7 @@ import unittest
 from khard.query import (
     AndQuery,
     AnyQuery,
+    ExactFieldQuery,
     FieldQuery,
     NameQuery,
     NullQuery,
@@ -203,6 +204,33 @@ class TestFieldQuery(unittest.TestCase):
         self.assertFalse(query.match(contact))
 
 
+class TestExactFieldQuery(unittest.TestCase):
+    def test_list_item_can_match_exact(self):
+        vcard = TestContact(categories=["family", "friend"])
+        query = ExactFieldQuery("categories", "family")
+        self.assertTrue(query.match(vcard))
+
+    def test_substring_of_a_list_item_does_not_match(self):
+        vcard = TestContact(categories=["family friend"])
+        query = ExactFieldQuery("categories", "friend")
+        self.assertFalse(query.match(vcard))
+
+    def test_match_is_case_insensitive(self):
+        vcard = TestContact(categories=["Family"])
+        query = ExactFieldQuery("categories", "family")
+        self.assertTrue(query.match(vcard))
+
+    def test_string_field_must_match_completely(self):
+        uid = "Some Test Uid"
+        vcard = TestContact(uid=uid)
+        self.assertFalse(ExactFieldQuery("uid", "e Test U").match(vcard))
+        self.assertTrue(ExactFieldQuery("uid", uid).match(vcard))
+
+    def test_exact_query_is_not_equal_to_the_substring_query(self):
+        self.assertNotEqual(ExactFieldQuery("uid", "foo"),
+                            FieldQuery("uid", "foo"))
+
+
 class TestNameQuery(unittest.TestCase):
     def test_matches_formatted_name_field(self):
         vcard = load_contact("minimal.vcf")
@@ -271,3 +299,22 @@ class TestParser(unittest.TestCase):
         self.assertEqual(parse("kind:i"), FieldQuery("kind", "individual"))
         self.assertEqual(parse("kind:org"), FieldQuery("kind", "org"))
         self.assertEqual(parse("kind:o"), FieldQuery("kind", "org"))
+
+    def test_parsing_exact_field_queries(self):
+        actual = parse("categories:=family")
+        expected = ExactFieldQuery("categories", "family")
+        self.assertEqual(actual, expected)
+
+    def test_exact_field_value_can_be_empty(self):
+        actual = parse("categories:=")
+        expected = ExactFieldQuery("categories", "")
+        self.assertEqual(actual, expected)
+
+    def test_exact_field_value_can_contain_further_equal_signs(self):
+        actual = parse("categories:=a=b")
+        expected = ExactFieldQuery("categories", "a=b")
+        self.assertEqual(actual, expected)
+
+    def test_bad_field_name_with_exact_syntax_returns_term_query(self):
+        string = "foo:=bar"
+        self.assertEqual(parse(string), TermQuery(string))

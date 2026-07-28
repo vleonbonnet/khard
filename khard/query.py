@@ -165,6 +165,31 @@ class FieldQuery(TermQuery):
         return '{}:{}'.format(self._field, self._term)
 
 
+class ExactFieldQuery(FieldQuery):
+
+    """A query to match against a certain field in a contact object exactly.
+
+    In contrast to :py:class:`FieldQuery` the term has to match the field
+    value (or, for list and dict fields, one of the items) completely,
+    matching is still case insensitive.
+    """
+
+    def match(self, thing: "str | contacts.Contact") -> bool:
+        if isinstance(thing, str):
+            return self._term == thing.lower()
+        return super().match(thing)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, ExactFieldQuery) \
+            and self._field == other._field and self._term == other._term
+
+    def __hash__(self) -> int:
+        return hash((ExactFieldQuery, self._field, self._term))
+
+    def __str__(self) -> str:
+        return '{}:={}'.format(self._field, self._term)
+
+
 class AndQuery(Query):
 
     """A query to combine multiple queries with "and"."""
@@ -335,8 +360,10 @@ def parse(string: str) -> TermQuery | FieldQuery:
     The input string interpreted as a :py:class:`FieldQuery` if it starts with
     a valid property name of the
     :py:class:`~khard.contacts.Contact` class, followed by a colon
-    and an arbitrary search term.  Otherwise it is interpreted as a
-    :py:class:`TermQuery`.
+    and an arbitrary search term.  If the search term starts with an equal
+    sign the query is turned into an :py:class:`ExactFieldQuery` and the rest
+    of the search term has to match the field exactly.  Otherwise it is
+    interpreted as a :py:class:`TermQuery`.
 
     :param string: a string to parse into a query
     :returns: a FieldQuery if the string contains a valid field specifier, a
@@ -354,5 +381,7 @@ def parse(string: str) -> TermQuery | FieldQuery:
                     return FieldQuery(field, kind)
             return TermQuery(string)
         if field in contacts.Contact.get_properties():
+            if term.startswith("="):
+                return ExactFieldQuery(field, term[1:])
             return FieldQuery(field, term)
     return TermQuery(string)
