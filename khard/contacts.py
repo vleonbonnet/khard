@@ -1346,7 +1346,7 @@ class YAMLEditable(VCardWrapper):
 def atomic_write(dest: str, overwrite: bool = False) -> Iterator[IO[str]]:
     """Atomically write to the destination file.
 
-    Optionally overwrite the path (using rename) rather than using `os.link`.
+    Optionally overwrite the path (using replace) rather than using `os.link`.
     """
     fd, src = tempfile.mkstemp(prefix=os.path.basename(dest), dir=os.path.dirname(dest))
     file = os.fdopen(fd, mode='w')
@@ -1363,7 +1363,8 @@ def atomic_write(dest: str, overwrite: bool = False) -> Iterator[IO[str]]:
         file.flush()
         file.close()
         if overwrite:
-            os.rename(src, dest)
+            # os.rename is atomic but fails on Windows if dest exists
+            os.replace(src, dest)
         else:
             try:
                 os.link(src, dest)

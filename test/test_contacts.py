@@ -4,10 +4,35 @@
 
 import base64
 import datetime
+import os
+import tempfile
 import unittest
 from unittest import mock
 
-from khard.contacts import Contact, multi_property_key
+from khard.contacts import Contact, atomic_write, multi_property_key
+
+
+class AtomicWrite(unittest.TestCase):
+    def test_overwrite_replaces_an_existing_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            dest = os.path.join(d, "contact.vcf")
+            with open(dest, "w") as f:
+                f.write("old")
+            with atomic_write(dest, overwrite=True) as f:
+                f.write("new")
+            with open(dest) as f:
+                self.assertEqual(f.read(), "new")
+
+    def test_refuses_to_replace_an_existing_file_without_overwrite(self):
+        with tempfile.TemporaryDirectory() as d:
+            dest = os.path.join(d, "contact.vcf")
+            with open(dest, "w") as f:
+                f.write("old")
+            with self.assertRaises(OSError):
+                with atomic_write(dest) as f:
+                    f.write("new")
+            with open(dest) as f:
+                self.assertEqual(f.read(), "old")
 
 
 class ContactFormatDateObject(unittest.TestCase):
