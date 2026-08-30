@@ -1349,7 +1349,7 @@ def atomic_write(dest: str, overwrite: bool = False) -> Iterator[IO[str]]:
     Optionally overwrite the path (using replace) rather than using `os.link`.
     """
     fd, src = tempfile.mkstemp(prefix=os.path.basename(dest), dir=os.path.dirname(dest))
-    file = os.fdopen(fd, mode='w')
+    file = os.fdopen(fd, mode='w', newline='')
     try:
         yield file
     except Exception:

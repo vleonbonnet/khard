@@ -13,6 +13,16 @@ from khard.contacts import Contact, atomic_write, multi_property_key
 
 
 class AtomicWrite(unittest.TestCase):
+    def test_preserves_vcard_crlf_line_endings(self):
+        with tempfile.TemporaryDirectory() as d:
+            dest = os.path.join(d, "contact.vcf")
+            with atomic_write(dest) as f:
+                f.write("BEGIN:VCARD\r\nEND:VCARD\r\n")
+            with open(dest, "rb") as f:
+                self.assertEqual(
+                    f.read(), b"BEGIN:VCARD\r\nEND:VCARD\r\n"
+                )
+
     def test_overwrite_replaces_an_existing_file(self):
         with tempfile.TemporaryDirectory() as d:
             dest = os.path.join(d, "contact.vcf")
