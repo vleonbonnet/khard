@@ -311,6 +311,29 @@ class TypedProperties(unittest.TestCase):
         self.assertDictEqual(wrapper.emails, {'home': ['foo@bar.net'],
                                               'home, pref': ['foo@baz.net']})
 
+    def test_adding_a_simple_impp(self):
+        wrapper = TestVCardWrapper()
+        wrapper._add_impp('xmpp', 'alice@example.com')
+        self.assertDictEqual(wrapper.impp, {'xmpp': ['alice@example.com']})
+
+    def test_adding_multiple_impp(self):
+        wrapper = TestVCardWrapper()
+        wrapper._add_impp('matrix', '@foo:example.com')
+        wrapper._add_impp('xmpp', 'bob@example.org')
+        wrapper._add_impp('xmpp', 'alice@example.com')
+        self.assertDictEqual(
+            wrapper.impp,
+            # The lists are sorted!
+            {'matrix': ['@foo:example.com'], 'xmpp': ['alice@example.com', 'bob@example.org']})
+
+    def test_adding_preferred_impp(self):
+        wrapper = TestVCardWrapper()
+        wrapper._add_impp('xmpp', 'bob@example.org')
+        wrapper._add_impp('pref,xmpp', 'alice@example.com')
+        self.assertDictEqual(
+            wrapper.impp, {'xmpp': ['bob@example.org'],
+                                    'xmpp, pref=1': ['alice@example.com']})
+
     def test_adding_a_simple_address(self):
         wrapper = TestVCardWrapper()
         components = ('box', 'extended', 'street', 'code', 'city', 'region',
@@ -388,6 +411,24 @@ class TypedProperties(unittest.TestCase):
 
     def test_list_of_strings_as_country(self):
         self._test_list_of_strings_as("country")
+
+    def test_pref_formatting_for_v3_vcards(self):
+        vcard = TestVCardWrapper(version="3.0")
+        vcard.add_email("pref", "test@example.com")
+        line = self._find_line("EMAIL", vcard.vcard.serialize())
+        self.assertEqual(line, ["EMAIL;TYPE=pref:test@example.com"])
+
+    def test_pref_formatting_for_v4_vcards(self):
+        vcard = TestVCardWrapper(version="4.0")
+        vcard.add_email("pref", "test@example.com")
+        line = self._find_line("EMAIL", vcard.vcard.serialize())
+        self.assertEqual(line, ["EMAIL;PREF=1:test@example.com"])
+
+    @staticmethod
+    def _find_line(pattern: str, lines: str | list[str]) -> list[str]:
+        if isinstance(lines, str):
+            lines = lines.splitlines()
+        return [line for line in lines if pattern in line]
 
 
 class OtherProperties(unittest.TestCase):
@@ -578,7 +619,7 @@ class NullableProperties(unittest.TestCase):
 
     LIST_PROPERTIES = ["categories", "titles", "webpages", "organisations",
                        "notes", "roles", "nicknames"]
-    DICT_PROPERTIES = ["post_addresses", "emails", "phone_numbers"]
+    DICT_PROPERTIES = ["post_addresses", "emails", "phone_numbers", "impp"]
     BASE_PROPERTIES = ["formatted_name", "kind", "version"]
 
     def test_for_non_existing_attributes(self):
